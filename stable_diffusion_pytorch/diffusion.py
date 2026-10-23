@@ -30,7 +30,7 @@ class ResidualBlock(nn.Module):
             self.residual_layer = nn.Identity()
         else:
             self.residual_layer = nn.Conv2d(in_channels, out_channels, kernel_size=1, padding=0)
-    
+
     def forward(self, feature, time):
         residue = feature
 
@@ -52,7 +52,7 @@ class AttentionBlock(nn.Module):
     def __init__(self, n_head: int, n_embd: int, d_context=768):
         super().__init__()
         channels = n_head * n_embd
-        
+
         self.groupnorm = nn.GroupNorm(32, channels, eps=1e-6)
         self.conv_input = nn.Conv2d(channels, channels, kernel_size=1, padding=0)
 
@@ -65,13 +65,13 @@ class AttentionBlock(nn.Module):
         self.linear_geglu_2 = nn.Linear(4 * channels, channels)
 
         self.conv_output = nn.Conv2d(channels, channels, kernel_size=1, padding=0)
-    
+
     def forward(self, x, context):
         residue_long = x
 
         x = self.groupnorm(x)
         x = self.conv_input(x)
-        
+
         n, c, h, w = x.shape
         x = x.view((n, c, h * w))   # (n, c, hw)
         x = x.transpose(-1, -2)  # (n, hw, c)
@@ -102,7 +102,7 @@ class Upsample(nn.Module):
     def __init__(self, channels):
         super().__init__()
         self.conv = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
-    
+
     def forward(self, x):
         x = F.interpolate(x, scale_factor=2, mode='nearest')
         return self.conv(x)
@@ -166,7 +166,7 @@ class UNet(nn.Module):
         for layers in self.decoders:
             x = torch.cat((x, skip_connections.pop()), dim=1)
             x = layers(x, context, time)
-        
+
         return x
 
 
@@ -175,7 +175,7 @@ class FinalLayer(nn.Module):
         super().__init__()
         self.groupnorm = nn.GroupNorm(32, in_channels)
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
-    
+
     def forward(self, x):
         x = self.groupnorm(x)
         x = F.silu(x)
@@ -188,7 +188,7 @@ class Diffusion(nn.Module):
         self.time_embedding = TimeEmbedding(320)
         self.unet = UNet()
         self.final = FinalLayer(320, 4)
-    
+
     def forward(self, latent, context, time):
         time = self.time_embedding(time)
         output = self.unet(latent, context, time)
